@@ -5,12 +5,10 @@ using UnityEngine;
 public class DragXZ : MonoBehaviour
 {
     float mZCoord;
-    public float collisionCheckDistance;
-    public bool aboutToCollide;
-    public float distanceToCollision;
-    Vector3 mOffset;
     [SerializeField] float Sensitivity;
+    Vector3 anchor;
     Rigidbody rb;
+    Vector3 movement;
 
     private void Start()
     {
@@ -22,43 +20,46 @@ public class DragXZ : MonoBehaviour
         if (Input.GetMouseButtonDown(0) || Input.GetMouseButtonDown(1))
         {
             mZCoord = Camera.main.WorldToScreenPoint(gameObject.transform.position).z;
-            mOffset = gameObject.transform.position - GetMouseAsWorldPoint();
+            anchor = GetMouseAsWorldPoint();
         }
-        if (Input.GetMouseButton(0) && mOffset.x != 0f)
+        if (Input.GetMouseButton(0) || Input.GetMouseButton(1))
         {
-            Vector3 UpDown = new Vector3(GetMouseAsWorldPoint().x + mOffset.x * Sensitivity, transform.position.y, transform.position.z);
-            RaycastHit hit;
-            if (rb.SweepTest((UpDown - transform.position).normalized, out hit, Mathf.Abs(mOffset.x) + 0.1f))
+            Vector3 worldPoint = GetMouseAsWorldPoint();
+            movement = (worldPoint - anchor) * Sensitivity;
+            anchor = worldPoint;
+            movement.y = 0.0f;
+            if (Input.GetMouseButton(0))
             {
-                aboutToCollide = true;
-                distanceToCollision = hit.distance;
+                movement.z = 0.0f;
             }
-            else
+            else if (Input.GetMouseButton(1))
             {
-                Debug.Log($"{UpDown}");
-                rb.MovePosition(UpDown);
-            }
-        }
-        if (Input.GetMouseButton(1) && mOffset.z != 0f)
-        {
-            Vector3 LeftRight = new Vector3(transform.position.x, transform.position.y, GetMouseAsWorldPoint().z + mOffset.z * Sensitivity);
-            RaycastHit hit;
-            if (rb.SweepTest((LeftRight - transform.position).normalized, out hit, Mathf.Abs(mOffset.z) + 0.1f))
-            {
-                aboutToCollide = true;
-                distanceToCollision = hit.distance;
-            }
-            else
-            {
-                Debug.Log($"{LeftRight}");
-                rb.MovePosition(LeftRight);
+                movement.x = 0.0f;
             }
         }
     }
 
     private void FixedUpdate()
     {
-
+        if (movement.x != 0f || movement.z != 0)
+        {
+            Vector3 direction = Vector3.Normalize(movement);
+            RaycastHit hit;
+            if (rb.SweepTest(direction, out hit, movement.magnitude))
+            {
+                if (hit.distance > 0.01f)
+                {
+                    movement = direction * (hit.distance - 0.01f);
+                }
+                else
+                {
+                    movement = Vector3.zero;
+                }
+            }
+            Debug.Log($"Move {movement}");
+            rb.MovePosition(transform.position + movement);
+        }
+        movement = Vector3.zero;
     }
 
     Vector3 GetMouseAsWorldPoint()
